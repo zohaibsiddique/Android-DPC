@@ -8,6 +8,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -40,7 +41,7 @@ class MainActivity : ComponentActivity() {
             }
 
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-        val isOwner = dpm.isDeviceOwnerApp(packageName)
+        val isOwner = if (dpm.isDeviceOwnerApp(packageName)) "Yes, I am Device Owner" else "No, not Device Owner"
 
 
         // Register this device with your Firebase backend:
@@ -48,19 +49,22 @@ class MainActivity : ComponentActivity() {
 
         //Factory reset protection (owner only can do factory reset)
         //DPM APIs let your DPC set FRP accounts and other policies. (Device owner only.)
-//        val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-//        val admin = ComponentName(this, DPCReceiver::class.java)
-//        val frpPolicy = FactoryResetProtectionPolicy.Builder()
-//            .setFactoryResetProtectionAccounts(listOf("admin@company.com"))
-//            .build()
-//        dpm.setFactoryResetProtectionPolicy(admin, frpPolicy)
+        val admin = ComponentName(this, DPCReceiver::class.java)
+        val frpPolicy = FactoryResetProtectionPolicy.Builder()
+            .setFactoryResetProtectionAccounts(listOf("admin@company.com"))
+            .build()
+        try {
+            dpm.setFactoryResetProtectionPolicy(admin, frpPolicy)
+        } catch (e: UnsupportedOperationException) {
+            Log.w("DPC", "FRP policy not supported on this device")
+        }
 
         enableEdgeToEdge()
         setContent {
             DPCTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Greeting(
-                        name = isOwner.toString(),
+                        name = isOwner,
                         modifier = Modifier.padding(innerPadding)
                     )
                 }
