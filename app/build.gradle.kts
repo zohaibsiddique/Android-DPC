@@ -53,6 +53,7 @@ dependencies {
     // ✅ Firebase dependencies
     implementation(platform("com.google.firebase:firebase-bom:34.2.0")) // Always use BOM
     implementation("com.google.firebase:firebase-messaging")
+    implementation(libs.androidx.ui.text)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

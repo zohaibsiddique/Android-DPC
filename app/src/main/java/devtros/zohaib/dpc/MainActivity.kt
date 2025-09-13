@@ -9,20 +9,32 @@ import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.app.ActivityCompat
+import androidx.compose.ui.unit.dp
 import com.google.firebase.messaging.FirebaseMessaging
 import devtros.zohaib.dpc.ui.theme.DPCTheme
 
@@ -35,16 +47,6 @@ class MainActivity : ComponentActivity() {
 
         //request for permissions
         requestNeededPermissions()
-
-        FirebaseMessaging.getInstance().token
-            .addOnCompleteListener { task ->
-                if (task.isSuccessful) {
-                    val token = task.result
-                    Log.d("FCM", "Current token: $token")
-                } else {
-                    Log.w("FCM", "Fetching FCM token failed", task.exception)
-                }
-            }
 
 
 //        val extras = intent?.extras
@@ -80,10 +82,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             DPCTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = isOwner,
-                        modifier = Modifier.padding(innerPadding)
-                    )
+                    MainScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
@@ -122,17 +121,33 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
+fun MainScreen(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val clipboardManager = LocalClipboardManager.current
+    var fcmToken by remember { mutableStateOf("Tap to generate token") }
 
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    DPCTheme {
-        Greeting("Android")
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(text = fcmToken, modifier = Modifier.padding(bottom = 16.dp))
+
+        Button(onClick = {
+            FirebaseMessaging.getInstance().token.addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    fcmToken = token
+                    clipboardManager.setText(AnnotatedString(token))
+                    Toast.makeText(context, "Token copied to clipboard", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(context, "Failed to get token", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }) {
+            Text("Generate & Copy FCM Token")
+        }
     }
 }
