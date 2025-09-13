@@ -12,6 +12,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,23 +23,39 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.app.ActivityCompat
+import com.google.firebase.messaging.FirebaseMessaging
 import devtros.zohaib.dpc.ui.theme.DPCTheme
 
 class MainActivity : ComponentActivity() {
+
     @RequiresPermission("android.permission.READ_PRIVILEGED_PHONE_STATE")
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        val extras = intent?.extras
-        val serverUrl = extras?.getString("server_url")
-        val enrollToken = extras?.getString("enrollment_token")
-        val deviceSerial: String =
-            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
-                Build.getSerial()
-            } else {
-                "PermissionNotGranted"
+        //request for permissions
+        requestNeededPermissions()
+
+        FirebaseMessaging.getInstance().token
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    val token = task.result
+                    Log.d("FCM", "Current token: $token")
+                } else {
+                    Log.w("FCM", "Fetching FCM token failed", task.exception)
+                }
             }
+
+
+//        val extras = intent?.extras
+//        val serverUrl = extras?.getString("server_url")
+//        val enrollToken = extras?.getString("enrollment_token")
+//        val deviceSerial: String =
+//            if (ActivityCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+//                Build.getSerial()
+//            } else {
+//                "PermissionNotGranted"
+//            }
 
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val isOwner = if (dpm.isDeviceOwnerApp(packageName)) "Yes, I am Device Owner" else "No, not Device Owner"
@@ -54,7 +71,7 @@ class MainActivity : ComponentActivity() {
             .setFactoryResetProtectionAccounts(listOf("admin@company.com"))
             .build()
         try {
-            dpm.setFactoryResetProtectionPolicy(admin, frpPolicy)
+//            dpm.setFactoryResetProtectionPolicy(admin, frpPolicy)
         } catch (e: UnsupportedOperationException) {
             Log.w("DPC", "FRP policy not supported on this device")
         }
@@ -71,7 +88,38 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private val requestPermissionLauncher =
+        this.registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+            if (isGranted) {
+                println("Notification permission granted")
+            } else {
+                println("Notification permission denied")
+            }
+        }
+
+    // Call this when you need to request permissions
+    private fun requestNeededPermissions() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            // Android 13+ requires POST_NOTIFICATIONS
+            if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                requestPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                return
+            }
+        }
+
+        // Request READ_PHONE_STATE for all versions that need it
+        if (checkSelfPermission(Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)
+            return
+        }
+
+        // ✅ If we reach here, all required permissions are already granted
+    }
+
 }
+
+
 
 @Composable
 fun Greeting(name: String, modifier: Modifier = Modifier) {
